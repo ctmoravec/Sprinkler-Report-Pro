@@ -1,0 +1,6 @@
+
+{
+  "name": "SprinklerReport Pro",
+  "description": "A high-efficiency tool for fire safety professionals to parse sprinkler inspection reports into structured TSV data for Excel integration using Gemini AI vision.",
+  "requestFramePermissions": []
+}
