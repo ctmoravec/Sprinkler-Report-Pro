@@ -1,6 +1,5 @@
 // services/geminiService.ts
-// Local-only OpenAI replacement for Gemini
-// Safe for personal use with Vite (.env.local)
+// OpenAI-backed replacement, API-compatible with existing App.tsx
 
 import { InspectionResult } from "../types";
 
@@ -10,13 +9,11 @@ if (!OPENAI_API_KEY) {
   throw new Error("Missing VITE_OPENAI_API_KEY in .env.local");
 }
 
-export async function analyzeInspectionReport(
-  reportText: string
-): Promise<InspectionResult[]> {
+async function callOpenAI(prompt: string): Promise<string> {
   const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -26,54 +23,47 @@ export async function analyzeInspectionReport(
         {
           role: "system",
           content: `
-You are a senior fire sprinkler inspector.
-Extract ONLY actionable deficiencies from inspection reports.
-
-Rules:
-- Ignore compliant, informational, or pass items
-- Normalize wording
-- Quantities must be numeric
-- Output must be valid JSON ONLY
-- No markdown, no explanations
-
-JSON schema:
-[
-  {
-    "category": string,
-    "section": string,
-    "deviceType": string,
-    "location": string,
-    "issue": string,
-    "quantity": number,
-    "actionRequired": string
-  }
-]
+You are a senior NICET III fire sprinkler estimator.
+Extract only actionable deficiencies from inspection reports.
+Return valid JSON only. No markdown. No commentary.
           `.trim(),
         },
         {
           role: "user",
-          content: reportText,
+          content: prompt,
         },
       ],
     }),
   });
 
   if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`OpenAI error: ${err}`);
+    throw new Error(await response.text());
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
+  return data.choices[0].message.content;
+}
 
-  if (!content) {
-    throw new Error("No response content from OpenAI");
-  }
+/**
+ * Matches existing import in App.tsx
+ */
+export async function parseSprinklerReport(
+  reportText: string
+): Promise<InspectionResult[]> {
+  const raw = await callOpenAI(reportText);
 
   try {
-    return JSON.parse(content) as InspectionResult[];
-  } catch (e) {
-    console.error("Raw model output:", content);
-    throw new Error("Failed to parse AI response as JSON");
+    return JSON.parse(raw);
+  } catch {
+    console.error("Raw OpenAI output:", raw);
+    throw new Error("AI response was not valid JSON");
   }
+}
+
+/**
+ * Stubbed for now so the app compiles.
+ * You can implement this later if needed.
+ */
+export async function queryEstimator(_query: string): Promise<string> {
+  return "Estimator query support coming soon.";
 }
